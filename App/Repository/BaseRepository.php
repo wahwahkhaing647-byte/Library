@@ -1,10 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
-use PDO;
 use App\Contract\BaseInterface;
+use PDO;
 
+/**
+ * Generic BaseRepository
+ * Provides full CRUD for all models
+ */
 abstract class BaseRepository implements BaseInterface
 {
     protected PDO $db;
@@ -13,41 +19,18 @@ abstract class BaseRepository implements BaseInterface
 
     protected string $primaryKey = 'id';
 
-    protected string $model;
-
-    protected function mapToModel(array $data): object
-    {
-        return $this->model::fromArray($data);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | CUSTOM SELECT COLUMNS
-    |--------------------------------------------------------------------------
-    | Example:
-    | protected ?string $selectColumns =
-    |     "id, name, email";
-    |
-    | OR with alias:
-    | "u.id, u.name, c.category_name"
-    |--------------------------------------------------------------------------
-    */
-    protected ?string $selectColumns = null;
-
-    /*
-    |--------------------------------------------------------------------------
-    | STORED PROCEDURES
-    |--------------------------------------------------------------------------
-    */
-    protected ?string $getByIdProcedure = null;
-
-    protected ?string $findAllProcedure = null;
-
-    protected ?string $countProcedure = null;
+    // IMPORTANT: child class must define this
+    protected array $fillable = [];
 
     public function __construct(PDO $db)
     {
         $this->db = $db;
+
+        // IMPORTANT: make PDO throw exceptions
+        $this->db->setAttribute(
+            PDO::ATTR_ERRMODE,
+            PDO::ERRMODE_EXCEPTION
+        );
     }
 
     /*
@@ -55,62 +38,28 @@ abstract class BaseRepository implements BaseInterface
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    public function findAll(?int $limit = null, int $offset = 0): array
-    {
-        if ($this->findAllProcedure !== null) {
 
-            $stmt = $this->db->prepare(
-                "CALL {$this->findAllProcedure}(?, ?)"
-            );
+    public function findAll(
+        int $limit = null,
+        int $offset = 0
+    ): array {
 
-            $stmt->bindValue(
-                1,
-                $limit,
-                $limit === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_INT
-            );
+        $sql = "SELECT * FROM {$this->table}";
 
-            $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+        if ($limit !== null) {
+            $sql .= " LIMIT :limit OFFSET :offset";
+        }
 
-        } else {
+        $stmt = $this->db->prepare($sql);
 
-            $columns = $this->selectColumns ?? '*';
-
-            $sql = "SELECT {$columns} FROM {$this->table}";
-
-            if ($limit !== null) {
-                $sql .= " LIMIT :limit OFFSET :offset";
-            }
-
-            $stmt = $this->db->prepare($sql);
-
-            if ($limit !== null) {
-
-                $stmt->bindValue(
-                    ':limit',
-                    $limit,
-                    PDO::PARAM_INT
-                );
-
-                $stmt->bindValue(
-                    ':offset',
-                    $offset,
-                    PDO::PARAM_INT
-                );
-            }
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
 
         $stmt->execute();
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $stmt->closeCursor();
-
-        return array_map(
-            fn(array $row) => $this->mapToModel($row),
-            $rows
-        );
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /*
@@ -118,121 +67,123 @@ abstract class BaseRepository implements BaseInterface
     | FIND BY ID
     |--------------------------------------------------------------------------
     */
-    public function findById(int $id): ?object
+
+    public function findById(int $id)
     {
-        if ($this->getByIdProcedure !== null) {
+        $sql = "SELECT * FROM {$this->table}
+                WHERE {$this->primaryKey} = :id";
 
-            $stmt = $this->db->prepare(
-                "CALL {$this->getByIdProcedure}(?)"
-            );
+        $stmt = $this->db->prepare($sql);
 
-            $stmt->bindValue(1, $id, PDO::PARAM_INT);
+        $stmt->execute([
+            ':id' => $id
+        ]);
 
-        } else {
-
-            $columns = $this->selectColumns ?? '*';
-
-            $stmt = $this->db->prepare(
-                "SELECT {$columns}
-             FROM {$this->table}
-             WHERE {$this->primaryKey} = :id
-             LIMIT 1"
-            );
-
-            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        }
-
-        $stmt->execute();
-
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        $stmt->closeCursor();
-
-        if (!$data) {
-            return null;
-        }
-
-        return $this->mapToModel($data);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
+
     /*
     |--------------------------------------------------------------------------
     | COUNT
     |--------------------------------------------------------------------------
     */
+
     public function count(array $filters = []): int
     {
-        $search = $filters['search'] ?? null;
-        $category = $filters['category'] ?? null;
+        $stmt = $this->db->query("
+            SELECT COUNT(*)
+            FROM {$this->table}
+        ");
 
-        /*
-        |--------------------------------------------------------------------------
-        | USE STORED PROCEDURE
-        |--------------------------------------------------------------------------
-        */
-        if ($this->countProcedure !== null) {
+        return (int) $stmt->fetchColumn();
+    }
 
-            $stmt = $this->db->prepare(
-                "CALL {$this->countProcedure}(:search, :category)"
-            );
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE (FULL CRUD)
+    |--------------------------------------------------------------------------
+    */
 
-            $stmt->bindValue(
-                ':search',
-                $search,
-                $search === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_STR
-            );
+    public function create(array $data): int
+    {
+        $fields = [];
+        $placeholders = [];
+        $values = [];
 
-            $stmt->bindValue(
-                ':category',
-                $category,
-                $category === null
-                ? PDO::PARAM_NULL
-                : PDO::PARAM_STR
-            );
+        foreach ($this->fillable as $column) {
 
-        } else {
+            if (array_key_exists($column, $data)) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | DEFAULT COUNT QUERY
-            |--------------------------------------------------------------------------
-            */
-            $sql = "SELECT COUNT(*) FROM {$this->table} WHERE 1=1";
-
-            if ($search !== null) {
-                $sql .= " AND title LIKE :search";
-            }
-
-            if ($category !== null) {
-                $sql .= " AND category = :category";
-            }
-
-            $stmt = $this->db->prepare($sql);
-
-            if ($search !== null) {
-                $stmt->bindValue(
-                    ':search',
-                    "%{$search}%",
-                    PDO::PARAM_STR
-                );
-            }
-
-            if ($category !== null) {
-                $stmt->bindValue(
-                    ':category',
-                    $category,
-                    PDO::PARAM_STR
-                );
+                $fields[] = $column;
+                $placeholders[] = ':' . $column;
+                $values[':' . $column] = $data[$column];
             }
         }
 
-        $stmt->execute();
+        if (empty($fields)) {
+            throw new \Exception("No valid data provided for insert.");
+        }
 
-        $count = (int) $stmt->fetchColumn();
+        $sql = "INSERT INTO {$this->table}
+                (" . implode(',', $fields) . ")
+                VALUES (" . implode(',', $placeholders) . ")";
 
-        $stmt->closeCursor();
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($values);
 
-        return $count;
+        return (int) $this->db->lastInsertId();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE (FULL CRUD)
+    |--------------------------------------------------------------------------
+    */
+
+    public function update(int $id, array $data): bool
+    {
+        $sets = [];
+        $values = [];
+
+        foreach ($this->fillable as $column) {
+
+            if (array_key_exists($column, $data)) {
+
+                $sets[] = "$column = :$column";
+                $values[":$column"] = $data[$column];
+            }
+        }
+
+        if (empty($sets)) {
+            throw new \Exception("No valid data provided for update.");
+        }
+
+        $values[':id'] = $id;
+
+        $sql = "UPDATE {$this->table}
+                SET " . implode(', ', $sets) . "
+                WHERE {$this->primaryKey} = :id";
+
+        $stmt = $this->db->prepare($sql);
+
+        return $stmt->execute($values);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE (FULL CRUD)
+    |--------------------------------------------------------------------------
+    */
+
+    public function delete(int $id): bool
+    {
+        $sql = "DELETE FROM {$this->table}
+                WHERE {$this->primaryKey} = :id";
+
+        $stmt = $this->db->prepare($sql);
+
+        return $stmt->execute([
+            ':id' => $id
+        ]);
     }
 }

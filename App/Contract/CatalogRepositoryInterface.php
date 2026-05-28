@@ -7,7 +7,7 @@
 namespace App\Contract;
 interface CatalogRepositoryInterface extends BaseInterface
 {
-    
+
     // Get catalog items by category
     public function getCategoryCatalog($category, $limit = null, $offset = 0);
 
@@ -18,5 +18,5 @@ interface CatalogRepositoryInterface extends BaseInterface
     public function getRandomCatalog();
 
     // Get a single catalog item by ID
-    // public function getSingleItem($id);
+    public function getSingleItem(int $id): ?array;
 }

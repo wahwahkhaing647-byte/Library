@@ -4,10 +4,19 @@ namespace App\Contract;
 
 interface BaseInterface
 {
-    // public function Count($category = null, $search = null);
+    // Create
+    public function create(array $data): int;
 
-     public function Count(array $filters = []): int;
+    // Read
     public function findById(int $id);
 
-    public function findAll(int $limit = null, int $offset = 0);
+    public function findAll(int $limit = null, int $offset = 0): array;
+
+    public function count(array $filters = []): int;
+
+    // Update
+    public function update(int $id, array $data): bool;
+
+    // Delete
+    public function delete(int $id): bool;
 }

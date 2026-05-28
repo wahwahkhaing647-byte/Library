@@ -8,7 +8,7 @@ use View\ItemView;
 
     <h1>
     <?php
-    $title = $pageTitle;
+    $title=$pageTitle;
 
     if (!empty($search)) {
       $title = 'Search results for "' . htmlspecialchars($search) . '"';

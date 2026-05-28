@@ -64,7 +64,7 @@ class CatalogService extends BaseService
 
     public function getSingleItem(int $id): ?array
     {
-        return $this->repo->findById($id);
+        return $this->repo->getSingleItem($id);
     }
 
     /* ================= PRIVATE HELPERS ================= */
