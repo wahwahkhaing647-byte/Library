@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Contract\UserRepositoryInterface;
+use App\DTO\UserDTO;
+use App\Mapper\UserMapper;
 use App\Repository\UserRepository;
 
 class UserService extends BaseService
@@ -17,17 +19,25 @@ class UserService extends BaseService
 
     // Business logic
 
-    public function getUserById(int $id)
+    public function getUserById(int $id): ?UserDTO
     {
-        return $this->repo->findById($id);
+        $row = $this->repo->findById($id);
+
+        if (!$row) {
+            return null;
+        }
+
+        return UserMapper::toDTO($row);
     }
 
-    public function getAllUsers(int $limit = 20, int $offset = 0)
+    public function getAllUsers(): array
     {
-        return $this->repo->findAll($limit, $offset);
+        $rows = $this->repo->findAll();
+
+        return UserMapper::toDTOList($rows);
     }
 
-    public function getUserByEmail(string $email)
+    public function getUserByEmail(string $email): ?UserDTO
     {
         return $this->repo->findByEmail($email);
     }

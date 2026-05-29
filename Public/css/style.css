@@ -519,8 +519,8 @@ body {
     align-items: center;
     white-space: nowrap;
     margin-left: 20px;
-
-    font-weight: 600;
+transition: opacity 0.5s ease;
+    font-weight: 400;
 }
 /* ==========================================
    REGISTER PAGE

@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Service\UserService;
 use App\Http\Requests\UserRequest;
 use App\Http\Requests\LoginRequest;
-
+use App\Response\ApiResponse;
 
 class UserController extends BaseController
 {
@@ -96,42 +96,44 @@ class UserController extends BaseController
     | USER LIST
     |--------------------------------------------------------------------------
     */
-    public function index(): void
-    {
-        $users = $this->userService->getAllUsers();
+    
 
-        $this->view('users/index', [
-            'pageTitle' => 'All Users',
-            'section' => '',
-            'users' => $users
-        ]);
-    }
+public function index(): void
+{
+    $usersDTO = $this->userService->getAllUsers();
+
+    $this->view('users/index', [
+        'response' => ApiResponse::success(
+            $usersDTO,
+            "Users fetched successfully"
+        )
+    ]);
+}
 
     /*
     |--------------------------------------------------------------------------
     | SINGLE USER
     |--------------------------------------------------------------------------
     */
-    public function show(): void
-    {
-        $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+public function show(): void
+{
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-        if (!$id) {
-            $this->redirect(BASE_URL . '/Public/index.php?page=users');
-        }
-
-        $user = $this->userService->getUserById($id);
-
-        if (!$user) {
-            $this->redirect(BASE_URL . '/Public/index.php?page=users');
-        }
-
-        $this->view('users/show', [
-            'pageTitle' => $user['name'],
-            'section' => '',
-            'user' => $user
-        ]);
+    if (!$id) {
+        $this->redirect(BASE_URL . '/Public/index.php?page=users');
     }
+
+    $user = $this->userService->getUserById($id);
+
+    if (!$user) {
+        $this->redirect(BASE_URL . '/Public/index.php?page=users');
+    }
+
+    $this->view('users/show', [
+        'pageTitle' => $user->name,   // ✅ DTO access
+        'user' => $user
+    ]);
+}
 
     /*
     |--------------------------------------------------------------------------

@@ -5,10 +5,10 @@
  */
 namespace App\Contract;
 
-use App\Model\User;
+use App\DTO\UserDTO;
 
 interface UserRepositoryInterface extends BaseInterface
 {
-    public function findByEmail(string $email): ?User;
+    public function findByEmail(string $email): ?UserDTO;
 
 }

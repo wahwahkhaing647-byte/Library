@@ -96,6 +96,7 @@ if (session_status() === PHP_SESSION_NONE) {
                     </div>
 
                     <?php unset($_SESSION['success']); ?>
+                    
                 <?php endif; ?>
 
                 <!-- </ul> -->

@@ -39,48 +39,42 @@ abstract class BaseRepository implements BaseInterface
     |--------------------------------------------------------------------------
     */
 
-    public function findAll(
-        int $limit = null,
-        int $offset = 0
-    ): array {
+    public function findAll(int $limit = null, int $offset = 0): array
+{
+    $sql = "SELECT * FROM {$this->table}";
 
-        $sql = "SELECT * FROM {$this->table}";
-
-        if ($limit !== null) {
-            $sql .= " LIMIT :limit OFFSET :offset";
-        }
-
-        $stmt = $this->db->prepare($sql);
-
-        if ($limit !== null) {
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        }
-
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($limit !== null) {
+        $sql .= " LIMIT :limit OFFSET :offset";
     }
 
+    $stmt = $this->db->prepare($sql);
+
+    if ($limit !== null) {
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    }
+
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC); // ONLY RAW DATA
+}
     /*
     |--------------------------------------------------------------------------
     | FIND BY ID
     |--------------------------------------------------------------------------
     */
 
-    public function findById(int $id)
-    {
-        $sql = "SELECT * FROM {$this->table}
-                WHERE {$this->primaryKey} = :id";
+  public function findById(int $id): ?array
+{
+    $stmt = $this->db->prepare("
+        SELECT * FROM {$this->table}
+        WHERE {$this->primaryKey} = :id
+    ");
 
-        $stmt = $this->db->prepare($sql);
+    $stmt->execute([':id' => $id]);
 
-        $stmt->execute([
-            ':id' => $id
-        ]);
-
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+}
 
     /*
     |--------------------------------------------------------------------------
