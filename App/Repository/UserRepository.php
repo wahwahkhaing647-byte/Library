@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Contract\UserRepositoryInterface;
 use App\Mapper\UserMapper;
 use App\DTO\UserDTO;
+use App\DTO\UserAuthDTO;
 use PDO;
 
 class UserRepository extends BaseRepository implements UserRepositoryInterface
@@ -26,26 +27,18 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     | FIND BY EMAIL (RETURN MODEL)
     |--------------------------------------------------------------------------
     */
-   public function findByEmail(string $email): ?UserDTO
-    {
-        $stmt = $this->db->prepare(
-            "CALL sp_find_user_by_email(:email)"
-        );
+  public function findByEmail(string $email): ?UserAuthDTO
+{
+    $stmt = $this->db->prepare(
+        "SELECT * FROM users WHERE email = ? LIMIT 1"
+    );
 
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $stmt->execute();
+    $stmt->execute([$email]);
 
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        $stmt->closeCursor();
-
-        if (!$data) {
-            return null;
-        }
-
-        // Convert array → DTO
-        return UserMapper::toDTO($data);
-    }
+    return $row ? UserMapper::toAuthDTO($row) : null;
+}
     
 
     /*

@@ -7,82 +7,68 @@ use App\DTO\UserDTO;
 use App\Mapper\UserMapper;
 use App\Repository\UserRepository;
 
-class UserService extends BaseService
+class UserService
 {
-    private UserRepositoryInterface $repo;
-
-    public function __construct(?UserRepositoryInterface $repo = null)
-    {
-        // fallback for small projects
-        $this->repo = $repo ?? new UserRepository($this->db());
-    }
-
-    // Business logic
+    public function __construct(
+        private UserRepositoryInterface $repo
+    ) {}
 
     public function getUserById(int $id): ?UserDTO
     {
         $row = $this->repo->findById($id);
 
-        if (!$row) {
-            return null;
-        }
-
-        return UserMapper::toDTO($row);
+        return $row ? UserMapper::toDTO($row) : null;
     }
 
     public function getAllUsers(): array
     {
-        $rows = $this->repo->findAll();
-
-        return UserMapper::toDTOList($rows);
-    }
-
-    public function getUserByEmail(string $email): ?UserDTO
-    {
-        return $this->repo->findByEmail($email);
+        return UserMapper::toDTOList(
+            $this->repo->findAll()
+        );
     }
 
     public function register(array $data): void
     {
-        if ($this->getUserByEmail($data['email'])) {
-            throw new \InvalidArgumentException(json_encode([
+        if ($this->repo->findByEmail($data['email'])) {
+            throw new \RuntimeException(json_encode([
                 'email' => 'Email already exists'
             ]));
         }
 
-        // Create User object
-        $user = new \App\Model\User();
+        $data['password'] = password_hash(
+            $data['password'],
+            PASSWORD_DEFAULT
+        );
 
-        $user->setName($data['name']);
-        $user->setEmail($data['email']);
-        $user->setPassword($data['password']); // auto-hashed in model
-
-        $this->repo->create($user->toArray());
+        $this->repo->create($data);
     }
 
-    public function login(array $data): void
+    // 🔐 LOGIN USES UserAuthDTO
+    public function login(array $data): UserDTO
     {
         if (empty($data['email']) || empty($data['password'])) {
-            throw new \InvalidArgumentException(json_encode([
-                'general' => 'Email and password are required'
+            throw new \RuntimeException(json_encode([
+                'general' => 'Email and password required'
             ]));
         }
 
-        $user = $this->getUserByEmail($data['email']);
+        $user = $this->repo->findByEmail($data['email']);
 
-        if (!$user || !$user->verifyPassword($data['password'])) {
+        if (
+            !$user ||
+            !password_verify($data['password'], $user->passwordHash)
+        ) {
             throw new \RuntimeException(json_encode([
                 'general' => 'Invalid email or password'
             ]));
         }
 
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
-        }
-
-        $_SESSION['user_id'] = $user->getId();
-        $_SESSION['user_name'] = $user->getName();
-        $_SESSION['user_email'] = $user->getEmail();
+        // return safe DTO
+        return new UserDTO(
+            id: $user->id,
+            name: $user->name,
+            email: $user->email
+        );
     }
 
     public function logout(): void
@@ -91,7 +77,12 @@ class UserService extends BaseService
             session_start();
         }
 
-        unset($_SESSION['user_id'], $_SESSION['user_name'], $_SESSION['user_email']);
+        unset(
+            $_SESSION['user_id'],
+            $_SESSION['user_name'],
+            $_SESSION['user_email']
+        );
+
         session_destroy();
     }
 }

@@ -8,7 +8,7 @@ class UserDTO
         public int $id,
         public string $name,
         public string $email,
-        public string $password
+      
     ) {
     }
 
@@ -27,11 +27,5 @@ class UserDTO
         return $this->email;
     }
 
-    public function verifyPassword(string $plainPassword): bool
-    {
-        return password_verify(
-            $plainPassword,
-            $this->password
-        );
-    }
+   
 }
