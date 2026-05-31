@@ -2,35 +2,34 @@
 
 namespace App\Core;
 
+use App\Exception\HttpException;
+use App\Exception\ValidationException;
+
 class ErrorHandler
 {
+    public static function register(): void
+    {
+        set_exception_handler([self::class, 'handle']);
+        set_error_handler([self::class, 'handleError']);
+    }
+
     public static function handle(\Throwable $e): void
     {
-        // You can log later if needed
-        error_log($e->getMessage());
+        http_response_code($e instanceof HttpException ? $e->getStatusCode() : 500);
 
-        // Store error in session (like Laravel flash)
-        $_SESSION['error'] = self::format($e);
+        $message = $e->getMessage();
+        $errors = [];
 
-        $_SESSION['old'] = $_POST;
+        if ($e instanceof ValidationException) {
+            $errors = $e->getErrors();
+        }
 
-        // Redirect back automatically
-        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+        require BASE_PATH . '/view/errors/error.php';
         exit;
     }
 
-    private static function format(\Throwable $e): array
+    public static function handleError($severity, $message, $file, $line): void
     {
-        $decoded = json_decode($e->getMessage(), true);
-
-        // validation error (array)
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-
-        // normal error
-        return [
-            'general' => $e->getMessage()
-        ];
+        throw new \ErrorException($message, 0, $severity, $file, $line);
     }
 }

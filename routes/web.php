@@ -4,10 +4,15 @@ use App\Controller\CatalogController;
 use App\Controller\DetailsController;
 use App\Controller\SuggestController;
 use App\Controller\UserController;
-
+use App\Exception\NotFoundException;
 use App\Repository\UserRepository;
 use App\Service\UserService;
 
+/*
+|--------------------------------------------------------------------------
+| ROUTE PARAM
+|--------------------------------------------------------------------------
+*/
 $page = $_GET['page'] ?? 'home';
 
 /*
@@ -15,111 +20,99 @@ $page = $_GET['page'] ?? 'home';
 | USER DEPENDENCIES
 |--------------------------------------------------------------------------
 */
-
 $userRepo = new UserRepository($db);
 $userService = new UserService($userRepo);
 
 /*
 |--------------------------------------------------------------------------
-| ROUTES
+| ROUTE DISPATCHER
 |--------------------------------------------------------------------------
 */
+try {
 
-switch ($page) {
+    switch ($page) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | HOME PAGE
-    |--------------------------------------------------------------------------
-    */
-    case 'home':
+        /*
+        |--------------------------------------------------------------------------
+        | HOME PAGE
+        |--------------------------------------------------------------------------
+        */
+        case 'home':
+            $controller = new CatalogController($catalogService);
+            $controller->home();
+            break;
 
-        $controller = new CatalogController($catalogService);
-        $controller->home();
+        /*
+        |--------------------------------------------------------------------------
+        | CATALOG
+        |--------------------------------------------------------------------------
+        */
+        case 'catalog':
+            $controller = new CatalogController($catalogService);
+            $controller->index();
+            break;
 
-        break;
+        /*
+        |--------------------------------------------------------------------------
+        | DETAILS
+        |--------------------------------------------------------------------------
+        */
+        case 'details':
+            $controller = new DetailsController($catalogService);
+            $controller->show();
+            break;
 
-    /*
-    |--------------------------------------------------------------------------
-    | CATALOG
-    |--------------------------------------------------------------------------
-    */
-    case 'catalog':
+        /*
+        |--------------------------------------------------------------------------
+        | SUGGEST
+        |--------------------------------------------------------------------------
+        */
+        case 'suggest':
+            $controller = new SuggestController($formatService);
+            $controller->index();
+            break;
 
-        $controller = new CatalogController($catalogService);
-        $controller->index();
+        /*
+        |--------------------------------------------------------------------------
+        | LOGIN
+        |--------------------------------------------------------------------------
+        */
+        case 'login':
+            $controller = new UserController($userService);
+            $controller->login();
+            break;
 
-        break;
+        /*
+        |--------------------------------------------------------------------------
+        | REGISTER
+        |--------------------------------------------------------------------------
+        */
+        case 'register':
+            $controller = new UserController($userService);
+            $controller->register();
+            break;
 
-    /*
-    |--------------------------------------------------------------------------
-    | DETAILS
-    |--------------------------------------------------------------------------
-    */
-    case 'details':
+        /*
+        |--------------------------------------------------------------------------
+        | LOGOUT
+        |--------------------------------------------------------------------------
+        */
+        case 'logout':
+            $controller = new UserController($userService);
+            $controller->logout();
+            break;
 
-        $controller = new DetailsController($catalogService);
-        $controller->show();
+        /*
+        |--------------------------------------------------------------------------
+        | DEFAULT (404)
+        |--------------------------------------------------------------------------
+        */
+        default:
+            throw new NotFoundException("Route not found: " . $page);
+    }
 
-        break;
+} catch (\Throwable $e) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUGGEST
-    |--------------------------------------------------------------------------
-    */
-    case 'suggest':
-
-        $controller = new SuggestController($formatService);
-        $controller->index();
-
-        break;
-
-    /*
-    |--------------------------------------------------------------------------
-    | LOGIN
-    |--------------------------------------------------------------------------
-    */
-    case 'login':
-
-        $controller = new UserController($userService);
-        $controller->login();
-
-        break;
-
-    /*
-    |--------------------------------------------------------------------------
-    | REGISTER
-    |--------------------------------------------------------------------------
-    */
-    case 'register':
-
-        $controller = new UserController($userService);
-        $controller->register();
-
-        break;
-
-    /*
-    |--------------------------------------------------------------------------
-    | LOGOUT
-    |--------------------------------------------------------------------------
-    */
-    case 'logout':
-
-        $controller = new UserController($userService);
-        $controller->logout();
-
-        break;
-
-    /*
-    |--------------------------------------------------------------------------
-    | DEFAULT
-    |--------------------------------------------------------------------------
-    */
-    default:
-
-        $controller = new CatalogController($catalogService);
-        $controller->home();
-
-        break;
+    // Let global ErrorHandler handle it
+    throw $e;
 }

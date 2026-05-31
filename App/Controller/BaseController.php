@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Http\Requests\BaseRequest;
+use App\Exception\ValidationException;
 
 /**
  * BaseController
@@ -10,24 +11,27 @@ use App\Http\Requests\BaseRequest;
  */
 abstract class BaseController
 {
-    protected function validateRequest(string $requestClass): array
-    {
-        if (!class_exists($requestClass)) {
-            throw new \Exception("Your Request not found: $requestClass");
-        }
-
-        /** @var BaseRequest $request */
-        $request = new $requestClass();
-
-        if (!$request->validate()) {
-
-            // return errors in Laravel style
-            throw new \Exception(json_encode($request->errors()));
-        }
-
-        return $request->data();
+protected function validateRequest(string $requestClass): array
+{
+    if (!class_exists($requestClass)) {
+        throw new \Exception("Your Request not found: $requestClass");
     }
-    /**
+
+    /** @var BaseRequest $request */
+    $request = new $requestClass();
+
+    if (!$request->validate()) {
+
+        $_SESSION['error'] = $request->errors();
+        $_SESSION['old'] = $_POST;
+
+        // redirect back instead of throwing exception
+        header("Location: " . $_SERVER['HTTP_REFERER']);
+        exit;
+    }
+
+    return $request->data();
+}/**
      * Render view with data
      */
     protected function view(string $path, array $data = []): void
